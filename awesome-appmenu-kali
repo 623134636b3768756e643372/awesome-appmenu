@@ -417,11 +417,12 @@ class Menu():
       f.write("kalimenu." + category.Name + " = {\n")
 
       # Write subcategories directly into main categories
-      for category_2 in self.Categories:
-        if category_2.SubCat_of == category.Name:
-          f.write("    { '" + category_2.Name + "', kalimenu." + category_2.Name)
+      for subcategory in self.Categories:
+        if subcategory.NumLaunchers == 0: continue
+        if subcategory.SubCat_of == category.Name:
+          f.write("    { '" + subcategory.Name + "', kalimenu." + subcategory.Name)
           if category.Icon:
-            f.write(", '" + category_2.Icon + "'")
+            f.write(", '" + subcategory.Icon + "'")
           f.write(" },\n")
 
       for launcher in category.Launchers:
