@@ -198,7 +198,7 @@ class Launcher():
 class Category():
 
   def __init__(self, listed_name, name, use_icon=True, icon_generic_name=None,
-               icon_search_paths=["/usr/share/icons/hicolor"], verbose=False):
+               icon_search_paths=["/usr/share/icons/hicolor"], verbose=False, subcat_of=""):
     self.ListedName = listed_name
     self.Name = name
     self.UseIcon = use_icon
@@ -207,6 +207,7 @@ class Category():
     self.NumLaunchers = 0
     self.Launchers = []
     self.verbose = verbose
+    self.SubCat_of = ""
 
     # Determine if icon_generic_name supplied is actually an icon
     if use_icon and icon_generic_name:
@@ -219,6 +220,9 @@ class Category():
           print("Using supplied path for category " + self.Name + " icon.")
 
     if (use_icon and self.IconGenericName): self.findIcon(icon_search_paths)
+
+    if subcat_of != "":
+      self.SubCat_of = subcat_of
 
   # Finds icon by generic name
   def findIcon(self, icon_search_paths):
@@ -303,7 +307,7 @@ class Menu():
     if self.miscidx == -1:
       self.addCategory(Category("Miscellaneous", "Miscellaneous", use_icon,
                                 "applications-other", icon_search_paths,
-                                verbose))
+                                verbose, ""))
       self.miscidx = self.NumCategories - 1
       if self.verbose: print("Added Miscellaneous category idx {:d}.".format(
                               self.miscidx))
@@ -407,6 +411,15 @@ class Menu():
         if self.verbose:
           print("Writing category " + category.Name + ".")
       f.write("kalimenu." + category.Name + " = {\n")
+
+      # Write subcategories directly into main categories
+      for category_2 in self.Categories:
+        if category_2.SubCat_of == category.Name:
+          f.write("    { '" + category_2.Name + "', kalimenu." + category_2.Name)
+          if category.Icon:
+            f.write(", '" + category_2.Icon + "'")
+          f.write(" },\n")
+
       for launcher in category.Launchers:
         if self.verbose:
           print("Writing " + launcher.Name + " to " + category.Name + ".")
@@ -446,6 +459,10 @@ class Menu():
     f.write("kalimenu.Appmenu = {\n")
     for category in self.Categories:
       if category.NumLaunchers == 0: continue
+      # Don't write subdirectorys to main list
+      if category.SubCat_of != "": continue
+      # Omit Miscellaneous category
+      if category.Name == "Miscellaneous": continue
       f.write("    { '" + category.Name + "', kalimenu." + category.Name)
       if category.Icon:
         f.write(", '" + category.Icon + "'")
@@ -468,69 +485,70 @@ def load_config():
   launcherpaths = ["/usr/share/applications", 
                    home + "/.local/share/applications"]
   iconpaths = ["/usr/share/icons/hicolor"]
-  categories = [ ["01-01-dns-analysis",   "x01_01_DNS_Analysis", "kali-info-gathering-trans"],
-               ["01-02-identify-live-hosts",   "x01_02_Host_Identification", "kali-info-gathering-trans"],
-               ["01-03-ids-ips-identification",   "x01_03_Firewall_Tools", "kali-info-gathering-trans"],
-               ["01-04-network-scanners",   "x01_04_Network_and_Port_Scanners", "kali-info-gathering-trans"],
-               ["01-07-osint-analysis",   "x01_07_OSINT_Analysis", "kali-info-gathering-trans"],
-               ["01-08-route-analysis",   "x01_08_Route_Analysis", "kali-info-gathering-trans"],
-               ["01-10-smb-analysis",   "x01_10_SMB_Analysis", "kali-info-gathering-trans"],
-               ["01-11-smtp-analysis",   "x01_11_SMTP_Analysis", "kali-info-gathering-trans"],
-               ["01-12-snmp-analysis",   "x01_12_SNMP_Analysis", "kali-info-gathering-trans"],
-               ["01-13-ssl-analysis",   "x01_13_SSL_Analysis", "kali-info-gathering-trans"],
-               ["02-01-cisco-tools",   "x02_01_Cisco_Tools", "kali-vuln-assessment-trans"],
-               ["02-02-fuzzers",   "x02_02_Fuzzing_Tools", "kali-vuln-assessment-trans"],
-               ["02-03-voip-tools",   "x02_03_VoIP_Tools", "kali-vuln-assessment-trans"],
-               ["02-05-nessus",   "x02_05_Nessus", "kali-vuln-assessment-trans"],
-               ["02-06-openvas",   "x02_06_OpenVAS", "kali-vuln-assessment-trans"],
-               ["02-07-stress-testing",   "x02_07_Stress_Testing", "kali-vuln-assessment-trans"],
-               ["03-01-cms-identification",   "x03_01_CMS_and_Site_Identification", "kali-web-application-trans"],
-               ["03-04-web-crawlers",   "x03_04_Web_Crawlers", "kali-web-application-trans"],
-               ["03-05-web-vulnerability-scanners",   "x03_05_Web_Vulnerability_Scanners", "kali-web-application-trans"],
-               ["03-06-web-application-proxies",   "x03_06_WebApp_Proxies", "kali-web-application-trans"],
-               ["05-01-online-attacks",   "x05_01_Online_Attacks", "kali-password-attacks-trans"],
-               ["05-02-offline-attacks",   "x05_01_Offline_Attacks", "kali-password-attacks-trans"],
-               ["05-04-pass-hash",   "x05_04_Passing_the_Hash", "kali-password-attacks-trans"],
-               ["05-05-profile",   "x05_05_Password_Profiling", "kali-password-attacks-trans"],
-               ["06-01-wireless-tools",   "x06_01_802_11_Wireless_Analysis", "kali-wireless-attacks-trans"],
-               ["06-02-bluetooth-tools",   "x06_02_Bluetooth_Tools", "kali-wireless-attacks-trans"],
-               ["06-03-rfid-nfc-tools",   "x06_03_RFID_NFC_Tools", "kali-wireless-attacks-trans"],
-               ["06-04-other-wireless",   "x06_04_Other_Wireless_Tools", "kali-wireless-attacks-trans"],
-               ["06-05-radio-tools",   "x06_05_Software_Defined_Radio", "kali-wireless-attacks-trans"],
-               ["09-01-network-sniffers",   "x09_01_Network_Sniffers", "kali-sniffing-spoofing-trans"],
-               ["09-02-network-spoofing",   "x09_02_Network_Spoofing", "kali-sniffing-spoofing-trans"],
-               ["10-01-os-backdoors",   "x10_01_OS_Backdoors", "kali-maintaining-access-trans"],
-               ["10-02-tunneling",   "x10_02_Tunneling", "kali-maintaining-access-trans"],
-               ["10-03-web-backdoors",   "x10_03_Web_Backdoors", "kali-maintaining-access-trans"],
-               ["10-04-command-control",   "x10_04_Command_and_Control", "kali-maintaining-access-trans"],
-               ["11-03-digital-forensics",   "x11_03_Digital_Forensics", "kali-forensics-trans"],
-               ["11-04-forensic-analysis-tools",   "x11_04_Digital_Forensics", "kali-forensics-trans"],
-               ["11-05-forensic-carving-tools",   "x11_05_Forensic_Carving_Tools", "kali-forensics-trans"],
-               ["11-06-forensic-hashing-tools",   "x11_06_Forensic_Hashing_Tools", "kali-forensics-trans"],
-               ["11-07-forensic-imaging-tools",   "x11_07_Forensic_Imaging_Tools", "kali-forensics-trans"],
-               ["11-08-forensic-suites",   "x11_08_Forensics_Analysis_Suites", "kali-forensics-trans"],
-               ["11-11-pdf-forensics-tools",   "x11_11_PDF_Forensics_Tools", "kali-forensics-trans"],
-               ["14-08-beef-service",   "x14_08_BEEF_XSS_Framework", "kali-system-services-trans"],
-               ["14-09-metasploit-service",   "x14_09_Metasploit", "kali-system-services-trans"],
-               ["14-10-dradis-service",   "x14_10_Dradis", "kali-system-services-trans"],
-               ["14-11-openvas-service",   "x14_11_OpenVas", "kali-system-services-trans"],
-               ["14-12-xplico-service",   "x14_12_Xplico", "kali-system-services-trans"],
-               ["14-13-gvm-service",   "x14_13_GVM", "kali-system-services-trans"],
-               ["01-info-gathering",   "x01_Information_Gathering", "kali-info-gathering-trans"],
-               ["02-vulnerability-analysis",   "x02_Vulnerability_Analysis", "kali-vuln-assessment-trans"],
-               ["03-webapp-analysis",   "x03_Web_Application_Analysis", "kali-web-application-trans"],
-               ["04-database-assessment",   "x04_Database_Assessment", "kali-database-assessment-trans"],
-               ["05-password-attacks",   "x05_Password_Attacks", "kali-password-attacks-trans"],
-               ["06-wireless-attacks",   "x06_Wireless_Attacks", "kali-wireless-attacks-trans"],
-               ["07-reverseengineer",   "x07_Reverse_Engineering", "kali-reverse-engineering-trans"],
-               ["08-exploitation-tools",   "x08_Exploit_Frameworks", "kali-exploitation-tools-trans"],
-               ["09-sniffing-spoofing",   "x09_Sniffing_Spoofing", "kali-sniffing-spoofing-trans"],
-               ["10-maintaining-access",   "x10_Maintaining_Access", "kali-maintaining-access-trans"],
-               ["11-forensics",   "x11_Forensic_Tools", "kali-forensics-trans"],
-               ["12-reporting",   "x12_Reporting_Tools", "kali-reporting-tools-trans"],
-               ["13-social-engineering-tools",   "x13_Social_Engineering_Tools", "kali-social-engineering-trans"],
-               ["14-services",   "x14_System_Services", "kali-system-services-trans"],
-               ["15-kali-offsec-links",   "Kali_and_OffSec_Links", ""] ]
+  #Categories   ["Category", "Category name", "Icon", "SubMenu of"]
+  categories = [ ["01-01-dns-analysis",   "DNS_Analysis", "kali-info-gathering-trans", "Information_Gathering"],
+               ["01-02-identify-live-hosts",   "Host_Identification", "kali-info-gathering-trans", "Information_Gathering"],
+               ["01-03-ids-ips-identification",   "Firewall_Tools", "kali-info-gathering-trans", "Information_Gathering"],
+               ["01-04-network-scanners",   "Network_and_Port_Scanners", "kali-info-gathering-trans", "Information_Gathering"],
+               ["01-07-osint-analysis",   "OSINT_Analysis", "kali-info-gathering-trans", "Information_Gathering"],
+               ["01-08-route-analysis",   "Route_Analysis", "kali-info-gathering-trans", "Information_Gathering"],
+               ["01-10-smb-analysis",   "SMB_Analysis", "kali-info-gathering-trans", "Information_Gathering"],
+               ["01-11-smtp-analysis",   "SMTP_Analysis", "kali-info-gathering-trans", "Information_Gathering"],
+               ["01-12-snmp-analysis",   "SNMP_Analysis", "kali-info-gathering-trans", "Information_Gathering"],
+               ["01-13-ssl-analysis",   "SSL_Analysis", "kali-info-gathering-trans", "Information_Gathering"],
+               ["02-01-cisco-tools",   "Cisco_Tools", "kali-vuln-assessment-trans", "Vulnerability_Analysis"],
+               ["02-02-fuzzers",   "Fuzzing_Tools", "kali-vuln-assessment-trans", "Vulnerability_Analysis"],
+               ["02-03-voip-tools",   "VoIP_Tools", "kali-vuln-assessment-trans", "Vulnerability_Analysis"],
+               ["02-05-nessus",   "Nessus", "kali-vuln-assessment-trans", "Vulnerability_Analysis"],
+               ["02-06-openvas",   "OpenVAS", "kali-vuln-assessment-trans", "Vulnerability_Analysis"],
+               ["02-07-stress-testing",   "Stress_Testing", "kali-vuln-assessment-trans", "Vulnerability_Analysis"],
+               ["03-01-cms-identification",   "CMS_and_Site_Identification", "kali-web-application-trans", "Web_Application_Analysis"],
+               ["03-04-web-crawlers",   "Web_Crawlers", "kali-web-application-trans", "Web_Application_Analysis"],
+               ["03-05-web-vulnerability-scanners",   "Web_Vulnerability_Scanners", "kali-web-application-trans", "Web_Application_Analysis"],
+               ["03-06-web-application-proxies",   "WebApp_Proxies", "kali-web-application-trans", "Web_Application_Analysis"],
+               ["05-01-online-attacks",   "Online_Attacks", "kali-password-attacks-trans", "Password_Attacks"],
+               ["05-02-offline-attacks",   "Offline_Attacks", "kali-password-attacks-trans", "Password_Attacks"],
+               ["05-04-pass-hash",   "Passing_the_Hash", "kali-password-attacks-trans", "Password_Attacks"],
+               ["05-05-profile",   "Password_Profiling", "kali-password-attacks-trans", "Password_Attacks"],
+               ["06-01-wireless-tools",   "W802_11_Wireless_Analysis", "kali-wireless-attacks-trans", "Wireless_Attacks"],
+               ["06-02-bluetooth-tools",   "Bluetooth_Tools", "kali-wireless-attacks-trans", "Wireless_Attacks"],
+               ["06-03-rfid-nfc-tools",   "RFID_NFC_Tools", "kali-wireless-attacks-trans", "Wireless_Attacks"],
+               ["06-04-other-wireless",   "Other_Wireless_Tools", "kali-wireless-attacks-trans", "Wireless_Attacks"],
+               ["06-05-radio-tools",   "Software_Defined_Radio", "kali-wireless-attacks-trans", "Wireless_Attacks"],
+               ["09-01-network-sniffers",   "Network_Sniffers", "kali-sniffing-spoofing-trans", "Sniffing_Spoofing"],
+               ["09-02-network-spoofing",   "Network_Spoofing", "kali-sniffing-spoofing-trans", "Sniffing_Spoofing"],
+               ["10-01-os-backdoors",   "OS_Backdoors", "kali-maintaining-access-trans", "Maintaining_Access"],
+               ["10-02-tunneling",   "Tunneling", "kali-maintaining-access-trans", "Maintaining_Access"],
+               ["10-03-web-backdoors",   "Web_Backdoors", "kali-maintaining-access-trans", "Maintaining_Access"],
+               ["10-04-command-control",   "Command_and_Control", "kali-maintaining-access-trans", "Maintaining_Access"],
+               ["11-03-digital-forensics",   "Digital_Forensics", "kali-forensics-trans", "Forensic_Tools"],
+               ["11-04-forensic-analysis-tools",   "Digital_Forensics", "kali-forensics-trans", "Forensic_Tools"],
+               ["11-05-forensic-carving-tools",   "Forensic_Carving_Tools", "kali-forensics-trans", "Forensic_Tools"],
+               ["11-06-forensic-hashing-tools",   "Forensic_Hashing_Tools", "kali-forensics-trans", "Forensic_Tools"],
+               ["11-07-forensic-imaging-tools",   "Forensic_Imaging_Tools", "kali-forensics-trans", "Forensic_Tools"],
+               ["11-08-forensic-suites",   "Forensics_Analysis_Suites", "kali-forensics-trans", "Forensic_Tools"],
+               ["11-11-pdf-forensics-tools",   "PDF_Forensics_Tools", "kali-forensics-trans", "Forensic_Tools"],
+               ["14-08-beef-service",   "BEEF_XSS_Framework", "kali-system-services-trans", "System_Services"],
+               ["14-09-metasploit-service",   "Metasploit", "kali-system-services-trans", "System_Services"],
+               ["14-10-dradis-service",   "Dradis", "kali-system-services-trans", "System_Services"],
+               ["14-11-openvas-service",   "OpenVas", "kali-system-services-trans", "System_Services"],
+               ["14-12-xplico-service",   "Xplico", "kali-system-services-trans", "System_Services"],
+               ["14-13-gvm-service",   "GVM", "kali-system-services-trans", "System_Services"],
+               ["01-info-gathering",   "Information_Gathering", "kali-info-gathering-trans", ""],
+               ["02-vulnerability-analysis",   "Vulnerability_Analysis", "kali-vuln-assessment-trans", ""],
+               ["03-webapp-analysis",   "Web_Application_Analysis", "kali-web-application-trans", ""],
+               ["04-database-assessment",   "Database_Assessment", "kali-database-assessment-trans", ""],
+               ["05-password-attacks",   "Password_Attacks", "kali-password-attacks-trans", ""],
+               ["06-wireless-attacks",   "Wireless_Attacks", "kali-wireless-attacks-trans", ""],
+               ["07-reverseengineer",   "Reverse_Engineering", "kali-reverse-engineering-trans", ""],
+               ["08-exploitation-tools",   "Exploit_Frameworks", "kali-exploitation-tools-trans", ""],
+               ["09-sniffing-spoofing",   "Sniffing_Spoofing", "kali-sniffing-spoofing-trans", ""],
+               ["10-maintaining-access",   "Maintaining_Access", "kali-maintaining-access-trans", ""],
+               ["11-forensics",   "Forensic_Tools", "kali-forensics-trans", ""],
+               ["12-reporting",   "Reporting_Tools", "kali-reporting-tools-trans", ""],
+               ["13-social-engineering-tools",   "Social_Engineering_Tools", "kali-social-engineering-trans", ""],
+               ["14-services",   "System_Services", "kali-system-services-trans", ""],
+               ["15-kali-offsec-links",   "Kali_and_OffSec_Links", "", ""] ]
   favorites = []
   terminal = "xterm"
   ignore_OnlyShowIn = False
@@ -620,7 +638,7 @@ if __name__ == "__main__":
   ncategories = len(categories)
   for i in range(ncategories):
     appmenu.addCategory(Category(categories[i][0], categories[i][1], use_icon,
-                                 categories[i][2], iconpaths, verbose))
+                                 categories[i][2], iconpaths, verbose, categories[i][3]))
 
   # Find launchers and add them to appropriate categories
   if use_icon: print("Finding launcher files and icons ...")
